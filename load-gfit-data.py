@@ -156,6 +156,8 @@ def processSession(accessToken,ses,db):
     t = datetime.datetime.fromtimestamp(float(ses['endTimeMillis'])/1000.)
     endDate = t.strftime(fmt)  # logs 2012-08-28 02:45:17
     durationMs = int(ses['endTimeMillis']) - int(ses['startTimeMillis'])
+    t = datetime.datetime.fromtimestamp(float(ses['modifiedTimeMillis'])/1000.)
+    modDate = t.strftime(fmt)  # logs 2012-08-28 02:45:17
     if verbose:
         debug('StartDateTime: {}, EndDateTime: {}, DurationMS: {}, StartMillis: {}, EndMillis: {}'.format(
             startDate, endDate, durationMs, ses['startTimeMillis'], ses['endTimeMillis']))
@@ -167,17 +169,19 @@ def processSession(accessToken,ses,db):
         cInsert = db.cursor()
         iStmt = """
             insert into healthdata.sleep_session
-                ( start_date, start_milliseconds, end_date, end_milliseconds, duration_ms)
+                ( start_date, start_milliseconds, end_date, end_milliseconds, google_fit_modified_milliseconds, google_fit_modified_date, duration_ms)
                 values
-                ( %s, %s, %s, %s, %s)
+                ( %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT ON CONSTRAINT sleep_session_start_date_end_date_key
                     DO UPDATE SET
                         start_milliseconds = EXCLUDED.start_milliseconds,
                         end_milliseconds = EXCLUDED.end_milliseconds,
-                        duration_ms = EXCLUDED.duration_ms
+                        duration_ms = EXCLUDED.duration_ms,
+                        google_fit_modified_milliseconds = EXCLUDED.google_fit_modified_milliseconds,
+                        google_fit_modified_date = EXCLUDED.google_fit_modified_date
                 RETURNING id
         """
-        cInsert.execute( iStmt, ( startDate, ses['startTimeMillis'], endDate, ses['endTimeMillis'], durationMs ))
+        cInsert.execute(iStmt, (startDate, ses['startTimeMillis'], endDate, ses['endTimeMillis'], ses['modifiedTimeMillis'], modDate, durationMs))
         sessionId = cInsert.fetchone()[0]
         #rowCount = cInsert.rowcount
         #log('upserted {} rows'.format(rowCount))
@@ -202,7 +206,7 @@ def main():
     # Add long and short args
     parser.add_argument('--verbose', '-v', help='verbose logging', action='store_true')
     parser.add_argument('--refreshtoken', '-r', help='user refresh token', required=True)
-    parser.add_argument('--daysback', '-d', help='How many days back to look for activity (default=30)', default=30)
+    parser.add_argument('--daysback', '-d', help='How many days back to look for activity (default=30)', default=30, type=int)
 
     args = parser.parse_args()
 
