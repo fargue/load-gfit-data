@@ -25,6 +25,7 @@ def debug(msg):
 
 def error(msg):
     log(msg)
+    raise
     sys.exit(1)
     return
 
